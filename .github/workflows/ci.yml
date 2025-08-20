@@ -1,74 +1,126 @@
-name: Tests with Multiple Suites
+name: fake_job_as_example
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+  workflow_call:
+    inputs:
+      target:
+        required: false
+        default: ''
+        type: string
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-    
+  checkout:
+    runs-on: [self-hosted, Windows]
+    continue-on-error: false
+    name: Checkout
+    timeout-minutes: 0
+    environment: my_env
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
-    
-    - name: Install dependencies
-      run: |
-        if [ -f "package-lock.json" ]; then
-          npm ci
-        else
-          npm install
-          # Generate lockfile for future runs
-          npm install --package-lock-only
-        fi
-    
-    - name: Create test results directory
-      run: mkdir -p test-results
-    
-    - name: Run Unit Tests
-      run: npx jest tests/unit --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
-      env:
-        JEST_JUNIT_OUTPUT: "test-results/unit-results.xml"
-      continue-on-error: true
-    
-    - name: Run Integration Tests
-      run: npx jest tests/integration --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
-      env:
-        JEST_JUNIT_OUTPUT: "test-results/integration-results.xml"
-      continue-on-error: true
-    
-    - name: Run E2E Tests
-      run: npx jest tests/e2e --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
-      env:
-        JEST_JUNIT_OUTPUT: "test-results/e2e-results.xml"
-      continue-on-error: true
-    
-    - name: Publish Test Reports
-      uses: dorny/test-reporter@v1
-      if: always()
-      with:
-        name: Test Results (Node ${{ matrix.node-version }})
-        path: test-results/*.xml
-        reporter: jest-junit
-        fail-on-error: false
-        show-summary: true
-        show-tests: failed
-    
-    - name: Upload test results as artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-results-node-${{ matrix.node-version }}
-        path: test-results/
-        retention-days: 7
+      - name: checkout
+        uses: actions/checkout@v4.1.0
+
+  build_project:
+    runs-on: [self-hosted, Windows]
+    continue-on-error: false
+    environment: my_env
+    name: Build Project
+    needs: [checkout]
+    steps:
+      - shell: powershell
+        run: get-childItem ./ -recurse | Where {$_.name -like "*.csproj"} | dotnet build $_
+
+  job_1:
+    runs-on: [self-hosted, Windows]
+    environment: my_env
+    name: Job 1
+    needs: [build_project]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Run Tests
+        shell: powershell
+        run: dotnet test ./job_1.csproj --logger "trx;logfilename=job_1.trx" -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
+      - name: Archive Job 1 results
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: job_1_results
+          path: ./TestResults/job_1.trx
+
+  job_1_results:
+    runs-on: [self-hosted, Windows]
+    name: Job 1 Results
+    needs: [job_1]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Get the artifacts from previous step
+        if: success() || failure()
+        uses: actions/download-artifact@v4
+        with:
+          path: "TestResults"
+          name: job_1_results
+      - uses: dorny/test-reporter@v1.9.1
+        if: success() || failure()
+        with:
+          name: Job 1 Test Summary
+          path: "./TestResults/job_1.trx"
+          reporter: dotnet-trx
+          fail-on-error: false
+          list-tests: 'failed'
+          list-suites: 'all'
+
+  job_2:
+    runs-on: [self-hosted, Windows]
+    environment: my_env
+    name: Job 2
+    needs: [build_project]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Run Tests
+        shell: powershell
+        run: dotnet test ./job_2.csproj --logger "trx;logfilename=job_2.trx" -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
+      - name: Archive Job 2 results
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: job_2_results
+          path: ./TestResults/job_2.trx
+
+  job_2_results:
+    runs-on: [self-hosted, Windows]
+    name: Job 2 Results
+    needs: [job_2]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Get the artifacts from previous step
+        if: success() || failure()
+        uses: actions/download-artifact@v4
+        with:
+          path: "TestResults"
+          name: job_2_results
+      - uses: dorny/test-reporter@v1.9.1
+        if: success() || failure()
+        with:
+          name: Job 2 Test Summary
+          path: "./TestResults/job_2.trx"
+          reporter: dotnet-trx
+          fail-on-error: false
+          list-tests: 'failed'
+          list-suites: 'all'
+
+  test_summary:
+    needs: [job_1_results, job_2_results]
+    runs-on: [self-hosted, Windows]
+    name: Test Summary
+    environment: my_env
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Generate test summary
+        uses: dorny/test-reporter@v1.9.1
+        with:
+          name: Test Summary
+          path: "TestResults/*.trx"
+          only-summary: 'true'
+          reporter: dotnet-trx
+          fail-on-error: true
+          list-tests: 'failed'
+          list-suites: 'all'
