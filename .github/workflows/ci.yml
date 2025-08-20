@@ -2,7 +2,7 @@ name: Test Reporter Demo
 
 on:
   push:
-    branches: [main, feature-**]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -12,18 +12,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Create sample test files
+      - name: Create proper sample TRX file
         run: |
           mkdir -p TestResults
-          # Create a sample TRX test file
+          # Create a properly formatted TRX file
           cat > TestResults/sample.trx << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+            <TestDefinitions>
+              <UnitTest name="Test1" storage="test1.dll">
+                <TestMethod className="TestClass1" name="Test1"/>
+              </UnitTest>
+              <UnitTest name="Test2" storage="test1.dll">
+                <TestMethod className="TestClass1" name="Test2"/>
+              </UnitTest>
+              <UnitTest name="Test3" storage="test1.dll">
+                <TestMethod className="TestClass1" name="Test3"/>
+              </UnitTest>
+            </TestDefinitions>
             <Results>
-              <UnitTestResult testName="Test1" outcome="Passed"/>
-              <UnitTestResult testName="Test2" outcome="Failed"/>
-              <UnitTestResult testName="Test3" outcome="Passed"/>
+              <UnitTestResult testName="Test1" outcome="Passed" duration="00:00:01.000"/>
+              <UnitTestResult testName="Test2" outcome="Failed" duration="00:00:02.000">
+                <Output>
+                  <ErrorInfo>
+                    <Message>Test failed message</Message>
+                    <StackTrace>at TestClass1.Test2()</StackTrace>
+                  </ErrorInfo>
+                </Output>
+              </UnitTestResult>
+              <UnitTestResult testName="Test3" outcome="Passed" duration="00:00:01.500"/>
             </Results>
+            <ResultSummary outcome="Completed">
+              <Counters total="3" executed="3" passed="2" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0"/>
+            </ResultSummary>
           </TestRun>
           EOF
 
