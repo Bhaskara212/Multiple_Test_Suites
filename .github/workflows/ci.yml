@@ -77,7 +77,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        uers
       - name: Create Integration test results (simulated)
         run: |
           mkdir -p TestResults
@@ -135,7 +134,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: integration-test-results
-          path: TestResults/integration-test.trx
+          path: TestResults/integration-test1.trx
 
   test-summary:
     runs-on: ubuntu-latest
