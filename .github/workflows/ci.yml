@@ -5,48 +5,58 @@ on:
     branches: [main, feature-**]
   workflow_dispatch:
 
-jobs:
+jjobs:
   test-reporter-demo:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Create proper sample TRX file
+      - name: Create minimal valid TRX file
         run: |
           mkdir -p TestResults
-          # Create a properly formatted TRX file
+          # Create a minimal but valid TRX file
           cat > TestResults/sample.trx << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
-          <TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
-            <TestDefinitions>
-              <UnitTest name="Test1" storage="test1.dll">
-                <TestMethod className="TestClass1" name="Test1"/>
-              </UnitTest>
-              <UnitTest name="Test2" storage="test1.dll">
-                <TestMethod className="TestClass1" name="Test2"/>
-              </UnitTest>
-              <UnitTest name="Test3" storage="test1.dll">
-                <TestMethod className="TestClass1" name="Test3"/>
-              </UnitTest>
-            </TestDefinitions>
+          <TestRun id="test-run-id" name="Sample Test Run" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+            <Times creation="2024-01-01T00:00:00.000Z" queuing="2024-01-01T00:00:00.000Z" start="2024-01-01T00:00:00.000Z" finish="2024-01-01T00:00:01.000Z"/>
+            <TestSettings name="Default Test Settings" id="settings-id"/>
             <Results>
-              <UnitTestResult testName="Test1" outcome="Passed" duration="00:00:01.000"/>
-              <UnitTestResult testName="Test2" outcome="Failed" duration="00:00:02.000">
+              <UnitTestResult executionId="exec-1" testId="test-1" testName="Test1" computerName="localhost" duration="00:00:01.000" startTime="2024-01-01T00:00:00.000Z" endTime="2024-01-01T00:00:01.000Z" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+              <UnitTestResult executionId="exec-2" testId="test-2" testName="Test2" computerName="localhost" duration="00:00:02.000" startTime="2024-01-01T00:00:01.000Z" endTime="2024-01-01T00:00:03.000Z" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
                 <Output>
                   <ErrorInfo>
-                    <Message>Test failed message</Message>
-                    <StackTrace>at TestClass1.Test2()</StackTrace>
+                    <Message>Assertion failed</Message>
                   </ErrorInfo>
                 </Output>
               </UnitTestResult>
-              <UnitTestResult testName="Test3" outcome="Passed" duration="00:00:01.500"/>
             </Results>
+            <TestDefinitions>
+              <UnitTest name="Test1" storage="test.dll" id="test-1">
+                <TestMethod codeBase="test.dll" className="TestClass" name="Test1"/>
+              </UnitTest>
+              <UnitTest name="Test2" storage="test.dll" id="test-2">
+                <TestMethod codeBase="test.dll" className="TestClass" name="Test2"/>
+              </UnitTest>
+            </TestDefinitions>
+            <TestEntries>
+              <TestEntry testId="test-1" executionId="exec-1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+              <TestEntry testId="test-2" executionId="exec-2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+            </TestEntries>
+            <TestLists>
+              <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+            </TestLists>
             <ResultSummary outcome="Completed">
-              <Counters total="3" executed="3" passed="2" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0"/>
+              <Counters total="2" executed="2" passed="1" failed="1"/>
             </ResultSummary>
           </TestRun>
           EOF
+
+      - name: List created files
+        run: ls -la TestResults/
+
+      - name: Show TRX file content
+        run: cat TestResults/sample.trx
 
       - name: Generate test summary with dorny/test-reporter
         uses: dorny/test-reporter@v1.9.1
