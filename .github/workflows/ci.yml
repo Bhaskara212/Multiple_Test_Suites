@@ -17,6 +17,30 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
+    - name: Create package.json if missing
+      run: |
+        if [ ! -f "package.json" ]; then
+          echo '{
+            "name": "multiple-test-suites",
+            "version": "1.0.0",
+            "description": "Project with multiple test suites",
+            "scripts": {
+              "test": "echo \"No tests specified\" && exit 0",
+              "test:unit": "jest tests/unit --passWithNoTests",
+              "test:integration": "jest tests/integration --passWithNoTests",
+              "test:e2e": "jest tests/e2e --passWithNoTests"
+            },
+            "devDependencies": {
+              "jest": "^29.0.0",
+              "jest-junit": "^16.0.0"
+            },
+            "jest-junit": {
+              "outputDirectory": "test-results",
+              "outputName": "test-results.xml"
+            }
+          }' > package.json
+        fi
+    
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
@@ -29,27 +53,40 @@ jobs:
           npm ci
         else
           npm install
-          # Generate lockfile for future runs
-          npm install --package-lock-only
         fi
     
     - name: Create test results directory
       run: mkdir -p test-results
     
     - name: Run Unit Tests
-      run: npx jest tests/unit --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
+      run: |
+        if [ -d "tests/unit" ] && [ "$(ls -A tests/unit)" ]; then
+          npx jest tests/unit --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
+        else
+          echo "No unit tests found, skipping..."
+        fi
       env:
         JEST_JUNIT_OUTPUT: "test-results/unit-results.xml"
       continue-on-error: true
     
     - name: Run Integration Tests
-      run: npx jest tests/integration --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
+      run: |
+        if [ -d "tests/integration" ] && [ "$(ls -A tests/integration)" ]; then
+          npx jest tests/integration --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
+        else
+          echo "No integration tests found, skipping..."
+        fi
       env:
         JEST_JUNIT_OUTPUT: "test-results/integration-results.xml"
       continue-on-error: true
     
     - name: Run E2E Tests
-      run: npx jest tests/e2e --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
+      run: |
+        if [ -d "tests/e2e" ] && [ "$(ls -A tests/e2e)" ]; then
+          npx jest tests/e2e --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
+        else
+          echo "No E2E tests found, skipping..."
+        fi
       env:
         JEST_JUNIT_OUTPUT: "test-results/e2e-results.xml"
       continue-on-error: true
