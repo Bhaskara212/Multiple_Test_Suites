@@ -1,6 +1,8 @@
 name: fake_job_as_example
 
 on:
+  push:
+    branches: [ main, feature-* ]
   workflow_call:
     inputs:
       target:
