@@ -1,0 +1,15 @@
+{
+    "name": "my-project",
+    "version": "1.0.0",
+    "scripts": {
+      "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+      "test:unit": "jest --testPathPattern=\"\\.test\\.js$\"",
+      "test:integration": "jest --testPathPattern=\"\\.integration\\.js$\"",
+      "test:e2e": "jest --testPathPattern=\"\\.e2e\\.js$\"",
+      "test:ci": "npm run test:unit -- --ci --reporters=default --reporters=jest-junit && npm run test:integration -- --ci --reporters=default --reporters=jest-junit && npm run test:e2e -- --ci --reporters=default --reporters=jest-junit"
+    },
+    "devDependencies": {
+      "jest": "^29.0.0",
+      "jest-junit": "^16.0.0"
+    }
+  }
