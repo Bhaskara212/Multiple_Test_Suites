@@ -1,4 +1,4 @@
-name: Test Reporter Demo
+name: Test Suite with Detailed Reporting
 
 on:
   push:
@@ -6,60 +6,178 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-reporter-demo:
+  junit-tests:
     runs-on: ubuntu-latest
     permissions:
-      checks: write  # This is required for dorny/test-reporter
+      checks: write
       actions: read
       contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Create minimal valid TRX file
+      - name: Create JUnit test results (simulated)
         run: |
           mkdir -p TestResults
-          # Create a minimal but valid TRX file
-          cat > TestResults/sample.trx << 'EOF'
+          # Simulate JUnit test results - some pass, some fail
+          cat > TestResults/junit-test.trx << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
-          <TestRun id="test-run-id" name="Sample Test Run" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
-            <Times creation="2024-01-01T00:00:00.000Z" queuing="2024-01-01T00:00:00.000Z" start="2024-01-01T00:00:00.000Z" finish="2024-01-01T00:00:01.000Z"/>
-            <TestSettings name="Default Test Settings" id="settings-id"/>
+          <TestRun id="junit-run-id" name="JUnit Test Run" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+            <Times creation="2024-01-01T00:00:00.000Z" queuing="2024-01-01T00:00:00.000Z" start="2024-01-01T00:00:00.000Z" finish="2024-01-01T00:00:05.000Z"/>
+            <TestSettings name="JUnit Test Settings" id="junit-settings-id"/>
             <Results>
-              <UnitTestResult executionId="exec-1" testId="test-1" testName="Test1" computerName="localhost" duration="00:00:01.000" startTime="2024-01-01T00:00:00.000Z" endTime="2024-01-01T00:00:01.000Z" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-              <UnitTestResult executionId="exec-2" testId="test-2" testName="Test2" computerName="localhost" duration="00:00:02.000" startTime="2024-01-01T00:00:01.000Z" endTime="2024-01-01T00:00:03.000Z" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
+              <UnitTestResult executionId="junit-exec-1" testId="junit-test-1" testName="UserServiceTest.createUser" computerName="localhost" duration="00:00:01.500" startTime="2024-01-01T00:00:00.000Z" endTime="2024-01-01T00:00:01.500Z" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+              <UnitTestResult executionId="junit-exec-2" testId="junit-test-2" testName="UserServiceTest.deleteUser" computerName="localhost" duration="00:00:02.000" startTime="2024-01-01T00:00:01.500Z" endTime="2024-01-01T00:00:03.500Z" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
                 <Output>
                   <ErrorInfo>
-                    <Message>Assertion failed</Message>
+                    <Message>NullPointerException: User object is null</Message>
+                    <StackTrace>at UserServiceTest.deleteUser(UserServiceTest.java:45)</StackTrace>
                   </ErrorInfo>
                 </Output>
               </UnitTestResult>
+              <UnitTestResult executionId="junit-exec-3" testId="junit-test-3" testName="PaymentServiceTest.processPayment" computerName="localhost" duration="00:00:01.000" startTime="2024-01-01T00:00:03.500Z" endTime="2024-01-01T00:00:04.500Z" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
             </Results>
             <TestDefinitions>
-              <UnitTest name="Test1" storage="test.dll" id="test-1">
-                <TestMethod codeBase="test.dll" className="TestClass" name="Test1"/>
+              <UnitTest name="UserServiceTest.createUser" storage="junit-tests.dll" id="junit-test-1">
+                <TestMethod codeBase="junit-tests.dll" className="UserServiceTest" name="createUser"/>
               </UnitTest>
-              <UnitTest name="Test2" storage="test.dll" id="test-2">
-                <TestMethod codeBase="test.dll" className="TestClass" name="Test2"/>
+              <UnitTest name="UserServiceTest.deleteUser" storage="junit-tests.dll" id="junit-test-2">
+                <TestMethod codeBase="junit-tests.dll" className="UserServiceTest" name="deleteUser"/>
+              </UnitTest>
+              <UnitTest name="PaymentServiceTest.processPayment" storage="junit-tests.dll" id="junit-test-3">
+                <TestMethod codeBase="junit-tests.dll" className="PaymentServiceTest" name="processPayment"/>
               </UnitTest>
             </TestDefinitions>
             <TestEntries>
-              <TestEntry testId="test-1" executionId="exec-1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-              <TestEntry testId="test-2" executionId="exec-2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+              <TestEntry testId="junit-test-1" executionId="junit-exec-1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+              <TestEntry testId="junit-test-2" executionId="junit-exec-2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+              <TestEntry testId="junit-test-3" executionId="junit-exec-3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
             </TestEntries>
             <TestLists>
               <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
             </TestLists>
             <ResultSummary outcome="Completed">
-              <Counters total="2" executed="2" passed="1" failed="1"/>
+              <Counters total="3" executed="3" passed="2" failed="1"/>
             </ResultSummary>
           </TestRun>
           EOF
 
-      - name: Generate test summary with dorny/test-reporter
+      - name: Upload JUnit test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-test-results
+          path: TestResults/junit-test.trx
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Create Integration test results (simulated)
+        run: |
+          mkdir -p TestResults
+          # Simulate Integration test results
+          cat > TestResults/integration-test.trx << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TestRun id="integration-run-id" name="Integration Test Run" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+            <Times creation="2024-01-01T00:00:00.000Z" queuing="2024-01-01T00:00:00.000Z" start="2024-01-01T00:00:00.000Z" finish="2024-01-01T00:00:10.000Z"/>
+            <TestSettings name="Integration Test Settings" id="integration-settings-id"/>
+            <Results>
+              <UnitTestResult executionId="integration-exec-1" testId="integration-test-1" testName="DatabaseIntegrationTest.connectionTest" computerName="localhost" duration="00:00:03.000" startTime="2024-01-01T00:00:00.000Z" endTime="2024-01-01T00:00:03.000Z" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
+                <Output>
+                  <ErrorInfo>
+                    <Message>ConnectionTimeout: Could not connect to database</Message>
+                    <StackTrace>at DatabaseIntegrationTest.connectionTest(DatabaseIntegrationTest.java:22)</StackTrace>
+                  </ErrorInfo>
+                </Output>
+              </UnitTestResult>
+              <UnitTestResult executionId="integration-exec-2" testId="integration-test-2" testName="APIIntegrationTest.healthCheck" computerName="localhost" duration="00:00:02.000" startTime="2024-01-01T00:00:03.000Z" endTime="2024-01-01T00:00:05.000Z" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+              <UnitTestResult executionId="integration-exec-3" testId="integration-test-3" testName="APIIntegrationTest.authenticationTest" computerName="localhost" duration="00:00:04.000" startTime="2024-01-01T00:00:05.000Z" endTime="2024-01-01T00:00:09.000Z" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
+                <Output>
+                  <ErrorInfo>
+                    <Message>AuthenticationFailed: Invalid credentials</Message>
+                    <StackTrace>at APIIntegrationTest.authenticationTest(APIIntegrationTest.java:67)</StackTrace>
+                  </ErrorInfo>
+                </Output>
+              </UnitTestResult>
+            </Results>
+            <TestDefinitions>
+              <UnitTest name="DatabaseIntegrationTest.connectionTest" storage="integration-tests.dll" id="integration-test-1">
+                <TestMethod codeBase="integration-tests.dll" className="DatabaseIntegrationTest" name="connectionTest"/>
+              </UnitTest>
+              <UnitTest name="APIIntegrationTest.healthCheck" storage="integration-tests.dll" id="integration-test-2">
+                <TestMethod codeBase="integration-tests.dll" className="APIIntegrationTest" name="healthCheck"/>
+              </UnitTest>
+              <UnitTest name="APIIntegrationTest.authenticationTest" storage="integration-tests.dll" id="integration-test-3">
+                <TestMethod codeBase="integration-tests.dll" className="APIIntegrationTest" name="authenticationTest"/>
+              </UnitTest>
+            </TestDefinitions>
+            <TestEntries>
+              <TestEntry testId="integration-test-1" executionId="integration-exec-1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+              <TestEntry testId="integration-test-2" executionId="integration-exec-2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+              <TestEntry testId="integration-test-3" executionId="integration-exec-3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+            </TestEntries>
+            <TestLists>
+              <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+            </TestLists>
+            <ResultSummary outcome="Completed">
+              <Counters total="3" executed="3" passed="1" failed="2"/>
+            </ResultSummary>
+          </TestRun>
+          EOF
+
+      - name: Upload Integration test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: TestResults/integration-test.trx
+
+  test-summary:
+    runs-on: ubuntu-latest
+    needs: [junit-tests, integration-tests]
+    permissions:
+      checks: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          path: TestResults
+          
+      - name: List downloaded test files
+        run: ls -la TestResults/
+        
+      - name: Generate comprehensive test summary
         uses: dorny/test-reporter@v1.9.1
         with:
-          name: Test Summary Report
-          path: "TestResults/*.trx"
+          name: 🧪 Comprehensive Test Summary
+          path: "TestResults/**/*.trx"
           reporter: dotnet-trx
           fail-on-error: false
+          list-tests: 'failed'
+          only-summary: false
+          list-suites: 'all'
+          max-annotations: 50
+
+      - name: Show individual job status and timing
+        run: |
+          echo "=== JOB EXECUTION SUMMARY ==="
+          echo "JUnit Tests: ${{ needs.junit-tests.result }} (Duration: ${{ needs.junit-tests.timeouts.minutes }}m ${{ needs.junit-tests.timeouts.seconds }}s)"
+          echo "Integration Tests: ${{ needs.integration-tests.result }} (Duration: ${{ needs.integration-tests.timeouts.minutes }}m ${{ needs.integration-tests.timeouts.seconds }}s)"
+          echo ""
+          echo "=== DETAILED FAILURE ANALYSIS ==="
+          if [ "${{ needs.junit-tests.result }}" == "failure" ]; then
+            echo "❌ JUnit Tests Failed - Check JUnit test report for details"
+          fi
+          if [ "${{ needs.integration-tests.result }}" == "failure" ]; then
+            echo "❌ Integration Tests Failed - Check Integration test report for details"
+          fi
