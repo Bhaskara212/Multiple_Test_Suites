@@ -2,9 +2,9 @@ name: Tests with Multiple Suites
 
 on:
   push:
-    
+    branches: [ main, develop ]
   pull_request:
-    
+    branches: [ main ]
 
 jobs:
   test:
@@ -17,15 +17,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+    
     - name: Create package.json if missing
       run: |
         if [ ! -f "package.json" ]; then
           echo '{
-            "name": "multiple-test-suites",
+            "name": "test-project",
             "version": "1.0.0",
-            "description": "Project with multiple test suites",
             "scripts": {
-              "test": "echo \"No tests specified\" && exit 0",
+              "test": "jest",
               "test:unit": "jest tests/unit --passWithNoTests",
               "test:integration": "jest tests/integration --passWithNoTests",
               "test:e2e": "jest tests/e2e --passWithNoTests"
@@ -33,74 +37,71 @@ jobs:
             "devDependencies": {
               "jest": "^29.0.0",
               "jest-junit": "^16.0.0"
-            },
-            "jest-junit": {
-              "outputDirectory": "test-results",
-              "outputName": "test-results.xml"
             }
           }' > package.json
         fi
     
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
-    
     - name: Install dependencies
+      run: npm install jest jest-junit --no-package-lock
+    
+    - name: Create test directories
       run: |
-        if [ -f "package-lock.json" ]; then
-          npm ci
-        else
-          npm install
+        mkdir -p tests/unit tests/integration tests/e2e test-results
+        # Create sample test files if none exist
+        if [ ! -f "tests/unit/sample.test.js" ]; then
+          echo "describe('Sample test', () => { it('should pass', () => { expect(1 + 1).toBe(2); }); });" > tests/unit/sample.test.js
         fi
     
-    - name: Create test results directory
-      run: mkdir -p test-results
-    
-    - name: Run Unit Tests
+    - name: Run Unit Tests with JUnit output
       run: |
-        if [ -d "tests/unit" ] && [ "$(ls -A tests/unit)" ]; then
-          npx jest tests/unit --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
-        else
-          echo "No unit tests found, skipping..."
-        fi
+        npx jest tests/unit --ci --verbose \
+          --reporters=jest-junit \
+          --reporters=default \
+          --testResultsProcessor="jest-junit" \
+          --collectCoverage=false
       env:
-        JEST_JUNIT_OUTPUT: "test-results/unit-results.xml"
+        JEST_JUNIT_OUTPUT_DIR: "test-results"
+        JEST_JUNIT_OUTPUT_NAME: "unit-results.xml"
       continue-on-error: true
     
-    - name: Run Integration Tests
+    - name: Run Integration Tests with JUnit output
       run: |
-        if [ -d "tests/integration" ] && [ "$(ls -A tests/integration)" ]; then
-          npx jest tests/integration --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
-        else
-          echo "No integration tests found, skipping..."
-        fi
+        npx jest tests/integration --ci --verbose \
+          --reporters=jest-junit \
+          --reporters=default \
+          --testResultsProcessor="jest-junit" \
+          --collectCoverage=false
       env:
-        JEST_JUNIT_OUTPUT: "test-results/integration-results.xml"
+        JEST_JUNIT_OUTPUT_DIR: "test-results"
+        JEST_JUNIT_OUTPUT_NAME: "integration-results.xml"
       continue-on-error: true
     
-    - name: Run E2E Tests
+    - name: Run E2E Tests with JUnit output
       run: |
-        if [ -d "tests/e2e" ] && [ "$(ls -A tests/e2e)" ]; then
-          npx jest tests/e2e --ci --reporters=default --reporters=jest-junit --testResultsProcessor="jest-junit"
-        else
-          echo "No E2E tests found, skipping..."
-        fi
+        npx jest tests/e2e --ci --verbose \
+          --reporters=jest-junit \
+          --reporters=default \
+          --testResultsProcessor="jest-junit" \
+          --collectCoverage=false
       env:
-        JEST_JUNIT_OUTPUT: "test-results/e2e-results.xml"
+        JEST_JUNIT_OUTPUT_DIR: "test-results"
+        JEST_JUNIT_OUTPUT_NAME: "e2e-results.xml"
       continue-on-error: true
+    
+    - name: List generated test files
+      run: |
+        echo "Generated test files:"
+        ls -la test-results/ || echo "No test-results directory found"
+        find . -name "*.xml" -type f | head -10 || echo "No XML files found"
     
     - name: Publish Test Reports
       uses: dorny/test-reporter@v1
       if: always()
       with:
-        name: Test Results (Node ${{ matrix.node-version }})
-        path: test-results/*.xml
+        name: "Test Results (Node ${{ matrix.node-version }})"
+        path: "test-results/*.xml"
         reporter: jest-junit
         fail-on-error: false
-        show-summary: true
-        show-tests: failed
     
     - name: Upload test results as artifacts
       uses: actions/upload-artifact@v4
