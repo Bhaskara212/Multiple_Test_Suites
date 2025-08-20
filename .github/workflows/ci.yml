@@ -1,4 +1,4 @@
-name: Test Suite with Detailed Reporting
+name: Test Suite with Mixed Results
 
 on:
   push:
@@ -16,10 +16,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Create JUnit test results (simulated)
+      - name: Create JUnit test results (PASSING)
         run: |
           mkdir -p TestResults
-          # Simulate JUnit test results - some pass, some fail
+          # JUnit tests - ALL PASS
           cat > TestResults/junit-test.trx << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <TestRun id="junit-run-id" name="JUnit Test Run" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
@@ -27,22 +27,15 @@ jobs:
             <TestSettings name="JUnit Test Settings" id="junit-settings-id"/>
             <Results>
               <UnitTestResult executionId="junit-exec-1" testId="junit-test-1" testName="UserServiceTest.createUser" computerName="localhost" duration="00:00:01.500" startTime="2024-01-01T00:00:00.000Z" endTime="2024-01-01T00:00:01.500Z" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-              <UnitTestResult executionId="junit-exec-2" testId="junit-test-2" testName="UserServiceTest.deleteUser" computerName="localhost" duration="00:00:02.000" startTime="2024-01-01T00:00:01.500Z" endTime="2024-01-01T00:00:03.500Z" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
-                <Output>
-                  <ErrorInfo>
-                    <Message>NullPointerException: User object is null</Message>
-                    <StackTrace>at UserServiceTest.deleteUser(UserServiceTest.java:45)</StackTrace>
-                  </ErrorInfo>
-                </Output>
-              </UnitTestResult>
+              <UnitTestResult executionId="junit-exec-2" testId="junit-test-2" testName="UserServiceTest.updateUser" computerName="localhost" duration="00:00:02.000" startTime="2024-01-01T00:00:01.500Z" endTime="2024-01-01T00:00:03.500Z" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
               <UnitTestResult executionId="junit-exec-3" testId="junit-test-3" testName="PaymentServiceTest.processPayment" computerName="localhost" duration="00:00:01.000" startTime="2024-01-01T00:00:03.500Z" endTime="2024-01-01T00:00:04.500Z" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
             </Results>
             <TestDefinitions>
               <UnitTest name="UserServiceTest.createUser" storage="junit-tests.dll" id="junit-test-1">
                 <TestMethod codeBase="junit-tests.dll" className="UserServiceTest" name="createUser"/>
               </UnitTest>
-              <UnitTest name="UserServiceTest.deleteUser" storage="junit-tests.dll" id="junit-test-2">
-                <TestMethod codeBase="junit-tests.dll" className="UserServiceTest" name="deleteUser"/>
+              <UnitTest name="UserServiceTest.updateUser" storage="junit-tests.dll" id="junit-test-2">
+                <TestMethod codeBase="junit-tests.dll" className="UserServiceTest" name="updateUser"/>
               </UnitTest>
               <UnitTest name="PaymentServiceTest.processPayment" storage="junit-tests.dll" id="junit-test-3">
                 <TestMethod codeBase="junit-tests.dll" className="PaymentServiceTest" name="processPayment"/>
@@ -57,7 +50,7 @@ jobs:
               <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
             </TestLists>
             <ResultSummary outcome="Completed">
-              <Counters total="3" executed="3" passed="2" failed="1"/>
+              <Counters total="3" executed="3" passed="3" failed="0"/>
             </ResultSummary>
           </TestRun>
           EOF
@@ -77,10 +70,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Create Integration test results (simulated)
+        
+      - name: Create Integration test results (FAILING)
         run: |
           mkdir -p TestResults
-          # Simulate Integration test results
+          # Integration tests - MULTIPLE FAILURES
           cat > TestResults/integration-test.trx << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <TestRun id="integration-run-id" name="Integration Test Run" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
@@ -90,7 +84,7 @@ jobs:
               <UnitTestResult executionId="integration-exec-1" testId="integration-test-1" testName="DatabaseIntegrationTest.connectionTest" computerName="localhost" duration="00:00:03.000" startTime="2024-01-01T00:00:00.000Z" endTime="2024-01-01T00:00:03.000Z" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
                 <Output>
                   <ErrorInfo>
-                    <Message>ConnectionTimeout: Could not connect to database</Message>
+                    <Message>ConnectionTimeout: Could not connect to database server</Message>
                     <StackTrace>at DatabaseIntegrationTest.connectionTest(DatabaseIntegrationTest.java:22)</StackTrace>
                   </ErrorInfo>
                 </Output>
@@ -99,8 +93,16 @@ jobs:
               <UnitTestResult executionId="integration-exec-3" testId="integration-test-3" testName="APIIntegrationTest.authenticationTest" computerName="localhost" duration="00:00:04.000" startTime="2024-01-01T00:00:05.000Z" endTime="2024-01-01T00:00:09.000Z" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
                 <Output>
                   <ErrorInfo>
-                    <Message>AuthenticationFailed: Invalid credentials</Message>
+                    <Message>AuthenticationFailed: Invalid API credentials provided</Message>
                     <StackTrace>at APIIntegrationTest.authenticationTest(APIIntegrationTest.java:67)</StackTrace>
+                  </ErrorInfo>
+                </Output>
+              </UnitTestResult>
+              <UnitTestResult executionId="integration-exec-4" testId="integration-test-4" testName="CacheIntegrationTest.redisConnection" computerName="localhost" duration="00:00:01.000" startTime="2024-01-01T00:00:09.000Z" endTime="2024-01-01T00:00:10.000Z" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
+                <Output>
+                  <ErrorInfo>
+                    <Message>RedisConnectionException: Cannot connect to Redis cache</Message>
+                    <StackTrace>at CacheIntegrationTest.redisConnection(CacheIntegrationTest.java:15)</StackTrace>
                   </ErrorInfo>
                 </Output>
               </UnitTestResult>
@@ -115,17 +117,21 @@ jobs:
               <UnitTest name="APIIntegrationTest.authenticationTest" storage="integration-tests.dll" id="integration-test-3">
                 <TestMethod codeBase="integration-tests.dll" className="APIIntegrationTest" name="authenticationTest"/>
               </UnitTest>
+              <UnitTest name="CacheIntegrationTest.redisConnection" storage="integration-tests.dll" id="integration-test-4">
+                <TestMethod codeBase="integration-tests.dll" className="CacheIntegrationTest" name="redisConnection"/>
+              </UnitTest>
             </TestDefinitions>
             <TestEntries>
               <TestEntry testId="integration-test-1" executionId="integration-exec-1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
               <TestEntry testId="integration-test-2" executionId="integration-exec-2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
               <TestEntry testId="integration-test-3" executionId="integration-exec-3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
+              <TestEntry testId="integration-test-4" executionId="integration-exec-4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
             </TestEntries>
             <TestLists>
               <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
             </TestLists>
             <ResultSummary outcome="Completed">
-              <Counters total="3" executed="3" passed="1" failed="2"/>
+              <Counters total="4" executed="4" passed="1" failed="3"/>
             </ResultSummary>
           </TestRun>
           EOF
@@ -134,7 +140,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: integration-test-results
-          path: TestResults/integration-test1.trx
+          path: TestResults/integration-test.trx
+
+      - name: Force failure to simulate test failures
+        run: exit 1  # This makes the job fail to simulate test failures
 
   test-summary:
     runs-on: ubuntu-latest
@@ -152,13 +161,10 @@ jobs:
         with:
           path: TestResults
           
-      - name: List downloaded test files
-        run: ls -la TestResults/
-        
       - name: Generate comprehensive test summary
         uses: dorny/test-reporter@v1.9.1
         with:
-          name: 🧪 Comprehensive Test Summary
+          name: 🧪 Test Results Summary (Mixed Outcome)
           path: "TestResults/**/*.trx"
           reporter: dotnet-trx
           fail-on-error: false
@@ -167,16 +173,25 @@ jobs:
           list-suites: 'all'
           max-annotations: 50
 
-      - name: Show individual job status and timing
+      - name: Show job execution summary
         run: |
           echo "=== JOB EXECUTION SUMMARY ==="
-          echo "JUnit Tests: ${{ needs.junit-tests.result }} (Duration: ${{ needs.junit-tests.timeouts.minutes }}m ${{ needs.junit-tests.timeouts.seconds }}s)"
-          echo "Integration Tests: ${{ needs.integration-tests.result }} (Duration: ${{ needs.integration-tests.timeouts.minutes }}m ${{ needs.integration-tests.timeouts.seconds }}s)"
+          echo "✅ JUnit Tests: ${{ needs.junit-tests.result }}"
+          echo "❌ Integration Tests: ${{ needs.integration-tests.result }}"
           echo ""
-          echo "=== DETAILED FAILURE ANALYSIS ==="
+          echo "=== FAILURE ANALYSIS ==="
           if [ "${{ needs.junit-tests.result }}" == "failure" ]; then
-            echo "❌ JUnit Tests Failed - Check JUnit test report for details"
+            echo "❌ JUnit Tests Failed - Check the JUnit test report for detailed error messages"
+          else
+            echo "✅ JUnit Tests Passed - All unit tests completed successfully"
           fi
+          
           if [ "${{ needs.integration-tests.result }}" == "failure" ]; then
-            echo "❌ Integration Tests Failed - Check Integration test report for details"
+            echo "❌ Integration Tests Failed - Critical issues found:"
+            echo "   - Database connection timeout"
+            echo "   - API authentication failure" 
+            echo "   - Redis cache connection issue"
+            echo "   Check the Integration test report for stack traces and detailed error messages"
+          else
+            echo "✅ Integration Tests Passed"
           fi
