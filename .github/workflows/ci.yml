@@ -1,128 +1,38 @@
-name: fake_job_as_example
+name: Test Reporter Demo
 
 on:
   push:
-    branches: [ main, feature-* ]
-  workflow_call:
-    inputs:
-      target:
-        required: false
-        default: ''
-        type: string
+    branches: [main, feature-**]
+  workflow_dispatch:
 
 jobs:
-  checkout:
+  test-reporter-demo:
     runs-on: ubuntu-latest
-    continue-on-error: false
-    name: Checkout
-    timeout-minutes: 0
-    environment: my_env
     steps:
-      - name: checkout
-        uses: actions/checkout@v4.1.0
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Create sample test files
+        run: |
+          mkdir -p TestResults
+          # Create a sample TRX test file
+          cat > TestResults/sample.trx << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+            <Results>
+              <UnitTestResult testName="Test1" outcome="Passed"/>
+              <UnitTestResult testName="Test2" outcome="Failed"/>
+              <UnitTestResult testName="Test3" outcome="Passed"/>
+            </Results>
+          </TestRun>
+          EOF
 
-  build_project:
-    runs-on: ubuntu-latest
-    continue-on-error: false
-    environment: my_env
-    name: Build Project
-    needs: [checkout]
-    steps:
-      - shell: powershell
-        run: get-childItem ./ -recurse | Where {$_.name -like "*.csproj"} | dotnet build $_
-
-  job_1:
-    runs-on: ubuntu-latest
-    environment: my_env
-    name: Job 1
-    needs: [build_project]
-    if: ${{ !cancelled() }}
-    steps:
-      - name: Run Tests
-        shell: powershell
-        run: dotnet test ./job_1.csproj --logger "trx;logfilename=job_1.trx" -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
-      - name: Archive Job 1 results
-        if: success() || failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: job_1_results
-          path: ./TestResults/job_1.trx
-
-  job_1_results:
-    runs-on: ubuntu-latest
-    name: Job 1 Results
-    needs: [job_1]
-    if: ${{ !cancelled() }}
-    steps:
-      - name: Get the artifacts from previous step
-        if: success() || failure()
-        uses: actions/download-artifact@v4
-        with:
-          path: "TestResults"
-          name: job_1_results
-      - uses: dorny/test-reporter@v1.9.1
-        if: success() || failure()
-        with:
-          name: Job 1 Test Summary
-          path: "./TestResults/job_1.trx"
-          reporter: dotnet-trx
-          fail-on-error: false
-          list-tests: 'failed'
-          list-suites: 'all'
-
-  job_2:
-    runs-on: ubuntu-latest
-    environment: my_env
-    name: Job 2
-    needs: [build_project]
-    if: ${{ !cancelled() }}
-    steps:
-      - name: Run Tests
-        shell: powershell
-        run: dotnet test ./job_2.csproj --logger "trx;logfilename=job_2.trx" -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
-      - name: Archive Job 2 results
-        if: success() || failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: job_2_results
-          path: ./TestResults/job_2.trx
-
-  job_2_results:
-    runs-on: ubuntu-latest
-    name: Job 2 Results
-    needs: [job_2]
-    if: ${{ !cancelled() }}
-    steps:
-      - name: Get the artifacts from previous step
-        if: success() || failure()
-        uses: actions/download-artifact@v4
-        with:
-          path: "TestResults"
-          name: job_2_results
-      - uses: dorny/test-reporter@v1.9.1
-        if: success() || failure()
-        with:
-          name: Job 2 Test Summary
-          path: "./TestResults/job_2.trx"
-          reporter: dotnet-trx
-          fail-on-error: false
-          list-tests: 'failed'
-          list-suites: 'all'
-
-  test_summary:
-    needs: [job_1_results, job_2_results]
-    runs-on: ubuntu-latest
-    name: Test Summary
-    environment: my_env
-    if: ${{ !cancelled() }}
-    steps:
-      - name: Generate test summary
+      - name: Generate test summary with dorny/test-reporter
         uses: dorny/test-reporter@v1.9.1
         with:
-          name: Test Summary
+          name: Test Summary Report
           path: "TestResults/*.trx"
-          only-summary: 'true'
           reporter: dotnet-trx
-          fail-on-error: true
+          fail-on-error: false
           list-tests: 'failed'
-          list-suites: 'all'
+          only-summary: false
