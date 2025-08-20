@@ -148,6 +148,7 @@ jobs:
   test-summary:
     runs-on: ubuntu-latest
     needs: [junit-tests, integration-tests]
+    if: always()  # This ensures the summary runs even if previous jobs fail
     permissions:
       checks: write
       actions: read
@@ -194,4 +195,12 @@ jobs:
             echo "   Check the Integration test report for stack traces and detailed error messages"
           else
             echo "✅ Integration Tests Passed"
+          fi
+          
+          # Set final workflow status based on test results
+          if [ "${{ needs.integration-tests.result }}" == "failure" ] || [ "${{ needs.junit-tests.result }}" == "failure" ]; then
+            echo "::warning::Some tests failed! Check the detailed report above."
+            exit 1  # This will make the test-summary job fail if any tests failed
+          else
+            echo "✅ All tests passed successfully!"
           fi
