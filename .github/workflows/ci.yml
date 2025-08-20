@@ -8,6 +8,10 @@ on:
 jobs:
   test-reporter-demo:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write  # This is required for dorny/test-reporter
+      actions: read
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,12 +56,6 @@ jobs:
           </TestRun>
           EOF
 
-      - name: List created files
-        run: ls -la TestResults/
-
-      - name: Show TRX file content
-        run: cat TestResults/sample.trx
-
       - name: Generate test summary with dorny/test-reporter
         uses: dorny/test-reporter@v1.9.1
         with:
@@ -65,5 +63,3 @@ jobs:
           path: "TestResults/*.trx"
           reporter: dotnet-trx
           fail-on-error: false
-          list-tests: 'failed'
-          only-summary: false
