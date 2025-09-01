@@ -12,7 +12,7 @@ on:
 
 jobs:
   checkout:
-    runs-on: [self-hosted, Windows]
+    runs-on: windows-latest
     continue-on-error: false
     name: Checkout
     timeout-minutes: 10
@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v4.1.0
 
   build_project:
-    runs-on: [self-hosted, Windows]
+    runs-on: windows-latest
     continue-on-error: false
     environment: my_env
     name: Build Project
@@ -36,7 +36,7 @@ jobs:
           }
 
   job_1:
-    runs-on: [self-hosted, Windows]
+    runs-on: windows-latest
     environment: my_env
     name: Job 1
     needs: [build_project]
@@ -57,7 +57,7 @@ jobs:
           path: ./TestResults/job_1.trx
 
   job_1_results:
-    runs-on: [self-hosted, Windows]
+    runs-on: windows-latest
     name: Job 1 Results
     needs: [job_1]
     if: ${{ !cancelled() }}
@@ -80,7 +80,7 @@ jobs:
           list-suites: all
 
   job_2:
-    runs-on: [self-hosted, Windows]
+    runs-on: windows-latest
     environment: my_env
     name: Job 2
     needs: [build_project]
@@ -101,7 +101,7 @@ jobs:
           path: ./TestResults/job_2.trx
 
   job_2_results:
-    runs-on: [self-hosted, Windows]
+    runs-on: windows-latest
     name: Job 2 Results
     needs: [job_2]
     if: ${{ !cancelled() }}
@@ -125,7 +125,7 @@ jobs:
 
   test_summary:
     needs: [job_1_results, job_2_results]
-    runs-on: [self-hosted, Windows]
+    runs-on: windows-latest
     name: Test Summary
     environment: my_env
     if: ${{ !cancelled() }}
