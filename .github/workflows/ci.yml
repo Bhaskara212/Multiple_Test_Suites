@@ -1,206 +1,145 @@
-name: Test Suite with Mixed Results
+name: fake_job_as_example
 
 on:
   push:
-    branches: [main, feature-**]
-  workflow_dispatch:
+    branches: [ main, feature-* ]
+  workflow_call:
+    inputs:
+      target:
+        required: false
+        default: ''
+        type: string
 
 jobs:
-  junit-tests:
-    runs-on: ubuntu-latest
-    permissions:
-      checks: write
-      actions: read
-      contents: read
+  checkout:
+    runs-on: [self-hosted, Windows]
+    continue-on-error: false
+    name: Checkout
+    timeout-minutes: 10
+    environment: my_env
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Create JUnit test results (PASSING)
-        run: |
-          mkdir -p TestResults
-          # JUnit tests - ALL PASS
-          cat > TestResults/junit-test.trx << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <TestRun id="junit-run-id" name="JUnit Test Run" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
-            <Times creation="2024-01-01T00:00:00.000Z" queuing="2024-01-01T00:00:00.000Z" start="2024-01-01T00:00:00.000Z" finish="2024-01-01T00:00:05.000Z"/>
-            <TestSettings name="JUnit Test Settings" id="junit-settings-id"/>
-            <Results>
-              <UnitTestResult executionId="junit-exec-1" testId="junit-test-1" testName="UserServiceTest.createUser" computerName="localhost" duration="00:00:01.500" startTime="2024-01-01T00:00:00.000Z" endTime="2024-01-01T00:00:01.500Z" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-              <UnitTestResult executionId="junit-exec-2" testId="junit-test-2" testName="UserServiceTest.updateUser" computerName="localhost" duration="00:00:02.000" startTime="2024-01-01T00:00:01.500Z" endTime="2024-01-01T00:00:03.500Z" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-              <UnitTestResult executionId="junit-exec-3" testId="junit-test-3" testName="PaymentServiceTest.processPayment" computerName="localhost" duration="00:00:01.000" startTime="2024-01-01T00:00:03.500Z" endTime="2024-01-01T00:00:04.500Z" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-            </Results>
-            <TestDefinitions>
-              <UnitTest name="UserServiceTest.createUser" storage="junit-tests.dll" id="junit-test-1">
-                <TestMethod codeBase="junit-tests.dll" className="UserServiceTest" name="createUser"/>
-              </UnitTest>
-              <UnitTest name="UserServiceTest.updateUser" storage="junit-tests.dll" id="junit-test-2">
-                <TestMethod codeBase="junit-tests.dll" className="UserServiceTest" name="updateUser"/>
-              </UnitTest>
-              <UnitTest name="PaymentServiceTest.processPayment" storage="junit-tests.dll" id="junit-test-3">
-                <TestMethod codeBase="junit-tests.dll" className="PaymentServiceTest" name="processPayment"/>
-              </UnitTest>
-            </TestDefinitions>
-            <TestEntries>
-              <TestEntry testId="junit-test-1" executionId="junit-exec-1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-              <TestEntry testId="junit-test-2" executionId="junit-exec-2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-              <TestEntry testId="junit-test-3" executionId="junit-exec-3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-            </TestEntries>
-            <TestLists>
-              <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-            </TestLists>
-            <ResultSummary outcome="Completed">
-              <Counters total="3" executed="3" passed="3" failed="0"/>
-            </ResultSummary>
-          </TestRun>
-          EOF
+        uses: actions/checkout@v4.1.0
 
-      - name: Upload JUnit test results
+  build_project:
+    runs-on: [self-hosted, Windows]
+    continue-on-error: false
+    environment: my_env
+    name: Build Project
+    needs: [checkout]
+    steps:
+      - name: Build all csproj files
+        shell: powershell
+        run: |
+          Get-ChildItem -Recurse -Filter *.csproj | ForEach-Object {
+            dotnet build $_.FullName --configuration Release
+          }
+
+  job_1:
+    runs-on: [self-hosted, Windows]
+    environment: my_env
+    name: Job 1
+    needs: [build_project]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Run Tests
+        shell: powershell
+        run: dotnet test ./job_1.csproj `
+          --logger "trx;logfilename=job_1.trx" `
+          --results-directory ./TestResults `
+          -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
+
+      - name: Archive Job 1 results
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-test-results
-          path: TestResults/junit-test.trx
+          name: job_1_results
+          path: ./TestResults/job_1.trx
 
-  integration-tests:
-    runs-on: ubuntu-latest
-    permissions:
-      checks: write
-      actions: read
-      contents: read
+  job_1_results:
+    runs-on: [self-hosted, Windows]
+    name: Job 1 Results
+    needs: [job_1]
+    if: ${{ !cancelled() }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Create Integration test results (FAILING)
-        run: |
-          mkdir -p TestResults
-          # Integration tests - MULTIPLE FAILURES
-          cat > TestResults/integration-test.trx << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <TestRun id="integration-run-id" name="Integration Test Run" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
-            <Times creation="2024-01-01T00:00:00.000Z" queuing="2024-01-01T00:00:00.000Z" start="2024-01-01T00:00:00.000Z" finish="2024-01-01T00:00:10.000Z"/>
-            <TestSettings name="Integration Test Settings" id="integration-settings-id"/>
-            <Results>
-              <UnitTestResult executionId="integration-exec-1" testId="integration-test-1" testName="DatabaseIntegrationTest.connectionTest" computerName="localhost" duration="00:00:03.000" startTime="2024-01-01T00:00:00.000Z" endTime="2024-01-01T00:00:03.000Z" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
-                <Output>
-                  <ErrorInfo>
-                    <Message>ConnectionTimeout: Could not connect to database server</Message>
-                    <StackTrace>at DatabaseIntegrationTest.connectionTest(DatabaseIntegrationTest.java:22)</StackTrace>
-                  </ErrorInfo>
-                </Output>
-              </UnitTestResult>
-              <UnitTestResult executionId="integration-exec-2" testId="integration-test-2" testName="APIIntegrationTest.healthCheck" computerName="localhost" duration="00:00:02.000" startTime="2024-01-01T00:00:03.000Z" endTime="2024-01-01T00:00:05.000Z" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-              <UnitTestResult executionId="integration-exec-3" testId="integration-test-3" testName="APIIntegrationTest.authenticationTest" computerName="localhost" duration="00:00:04.000" startTime="2024-01-01T00:00:05.000Z" endTime="2024-01-01T00:00:09.000Z" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
-                <Output>
-                  <ErrorInfo>
-                    <Message>AuthenticationFailed: Invalid API credentials provided</Message>
-                    <StackTrace>at APIIntegrationTest.authenticationTest(APIIntegrationTest.java:67)</StackTrace>
-                  </ErrorInfo>
-                </Output>
-              </UnitTestResult>
-              <UnitTestResult executionId="integration-exec-4" testId="integration-test-4" testName="CacheIntegrationTest.redisConnection" computerName="localhost" duration="00:00:01.000" startTime="2024-01-01T00:00:09.000Z" endTime="2024-01-01T00:00:10.000Z" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d">
-                <Output>
-                  <ErrorInfo>
-                    <Message>RedisConnectionException: Cannot connect to Redis cache</Message>
-                    <StackTrace>at CacheIntegrationTest.redisConnection(CacheIntegrationTest.java:15)</StackTrace>
-                  </ErrorInfo>
-                </Output>
-              </UnitTestResult>
-            </Results>
-            <TestDefinitions>
-              <UnitTest name="DatabaseIntegrationTest.connectionTest" storage="integration-tests.dll" id="integration-test-1">
-                <TestMethod codeBase="integration-tests.dll" className="DatabaseIntegrationTest" name="connectionTest"/>
-              </UnitTest>
-              <UnitTest name="APIIntegrationTest.healthCheck" storage="integration-tests.dll" id="integration-test-2">
-                <TestMethod codeBase="integration-tests.dll" className="APIIntegrationTest" name="healthCheck"/>
-              </UnitTest>
-              <UnitTest name="APIIntegrationTest.authenticationTest" storage="integration-tests.dll" id="integration-test-3">
-                <TestMethod codeBase="integration-tests.dll" className="APIIntegrationTest" name="authenticationTest"/>
-              </UnitTest>
-              <UnitTest name="CacheIntegrationTest.redisConnection" storage="integration-tests.dll" id="integration-test-4">
-                <TestMethod codeBase="integration-tests.dll" className="CacheIntegrationTest" name="redisConnection"/>
-              </UnitTest>
-            </TestDefinitions>
-            <TestEntries>
-              <TestEntry testId="integration-test-1" executionId="integration-exec-1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-              <TestEntry testId="integration-test-2" executionId="integration-exec-2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-              <TestEntry testId="integration-test-3" executionId="integration-exec-3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-              <TestEntry testId="integration-test-4" executionId="integration-exec-4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-            </TestEntries>
-            <TestLists>
-              <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d"/>
-            </TestLists>
-            <ResultSummary outcome="Completed">
-              <Counters total="4" executed="4" passed="1" failed="3"/>
-            </ResultSummary>
-          </TestRun>
-          EOF
-
-      - name: Upload Integration test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-test-results
-          path: TestResults/integration-test.trx
-
-      - name: Force failure to simulate test failures
-        run: exit 1  # This makes the job fail to simulate test failures
-
-  test-summary:
-    runs-on: ubuntu-latest
-    needs: [junit-tests, integration-tests]
-    if: always()  # This ensures the summary runs even if previous jobs fail
-    permissions:
-      checks: write
-      actions: read
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Download all test results
+      - name: Get the artifacts from previous step
+        if: success() || failure()
         uses: actions/download-artifact@v4
         with:
           path: TestResults
-          
-      - name: Generate comprehensive test summary
-        uses: dorny/test-reporter@v1.9.1
+          name: job_1_results
+
+      - uses: mikepenz/action-junit-report@v5
+        if: success() || failure()
         with:
-          name: 🧪 Test Results Summary (Mixed Outcome)
-          path: "TestResults/**/*.trx"
+          name: Job 1 Test Summary
+          path: ./TestResults/job_1.trx
           reporter: dotnet-trx
           fail-on-error: false
-          list-tests: 'failed'
-          only-summary: false
-          list-suites: 'all'
-          max-annotations: 50
+          list-tests: failed
+          list-suites: all
 
-      - name: Show job execution summary
-        run: |
-          echo "=== JOB EXECUTION SUMMARY ==="
-          echo "✅ JUnit Tests: ${{ needs.junit-tests.result }}"
-          echo "❌ Integration Tests: ${{ needs.integration-tests.result }}"
-          echo ""
-          echo "=== FAILURE ANALYSIS ==="
-          if [ "${{ needs.junit-tests.result }}" == "failure" ]; then
-            echo "❌ JUnit Tests Failed - Check the JUnit test report for detailed error messages"
-          else
-            echo "✅ JUnit Tests Passed - All unit tests completed successfully"
-          fi
-          
-          if [ "${{ needs.integration-tests.result }}" == "failure" ]; then
-            echo "❌ Integration Tests Failed - Critical issues found:"
-            echo "   - Database connection timeout"
-            echo "   - API authentication failure" 
-            echo "   - Redis cache connection issue"
-            echo "   Check the Integration test report for stack traces and detailed error messages"
-          else
-            echo "✅ Integration Tests Passed"
-          fi
-          
-          # Set final workflow status based on test results
-          if [ "${{ needs.integration-tests.result }}" == "failure" ] || [ "${{ needs.junit-tests.result }}" == "failure" ]; then
-            echo "::warning::Some tests failed! Check the detailed report above."
-            exit 1  # This will make the test-summary job fail if any tests failed
-          else
-            echo "✅ All tests passed successfully!"
-          fi
+  job_2:
+    runs-on: [self-hosted, Windows]
+    environment: my_env
+    name: Job 2
+    needs: [build_project]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Run Tests
+        shell: powershell
+        run: dotnet test ./job_2.csproj `
+          --logger "trx;logfilename=job_2.trx" `
+          --results-directory ./TestResults `
+          -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
+
+      - name: Archive Job 2 results
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: job_2_results
+          path: ./TestResults/job_2.trx
+
+  job_2_results:
+    runs-on: [self-hosted, Windows]
+    name: Job 2 Results
+    needs: [job_2]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Get the artifacts from previous step
+        if: success() || failure()
+        uses: actions/download-artifact@v4
+        with:
+          path: TestResults
+          name: job_2_results
+
+      - uses: mikepenz/action-junit-report@v5
+        if: success() || failure()
+        with:
+          name: Job 2 Test Summary
+          path: ./TestResults/job_2.trx
+          reporter: dotnet-trx
+          fail-on-error: false
+          list-tests: failed
+          list-suites: all
+
+  test_summary:
+    needs: [job_1_results, job_2_results]
+    runs-on: [self-hosted, Windows]
+    name: Test Summary
+    environment: my_env
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Generate test summary
+        uses: mikepenz/action-junit-report@v5
+        with:
+          name: Test Summary
+          path: TestResults/*.trx
+          only-summary: true
+          reporter: dotnet-trx
+          fail-on-error: true
+          list-tests: failed
+          list-suites: all
+          detailed_summary: true
+          include_suites: true
+          include_tests: true
