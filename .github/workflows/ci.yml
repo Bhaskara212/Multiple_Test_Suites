@@ -15,10 +15,10 @@ jobs:
     runs-on: [self-hosted, Windows]
     continue-on-error: false
     name: Checkout
-    timeout-minutes: 0
+    timeout-minutes: 10
     environment: my_env
     steps:
-      - name: checkout
+      - name: Checkout
         uses: actions/checkout@v4.1.0
 
   build_project:
@@ -28,8 +28,12 @@ jobs:
     name: Build Project
     needs: [checkout]
     steps:
-      - shell: powershell
-        run: get-childItem ./ -recurse | Where {$_.name -like "*.csproj"} | dotnet build $_
+      - name: Build all csproj files
+        shell: powershell
+        run: |
+          Get-ChildItem -Recurse -Filter *.csproj | ForEach-Object {
+            dotnet build $_.FullName --configuration Release
+          }
 
   job_1:
     runs-on: [self-hosted, Windows]
@@ -40,7 +44,11 @@ jobs:
     steps:
       - name: Run Tests
         shell: powershell
-        run: dotnet test ./job_1.csproj --logger "trx;logfilename=job_1.trx" -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
+        run: dotnet test ./job_1.csproj `
+          --logger "trx;logfilename=job_1.trx" `
+          --results-directory ./TestResults `
+          -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
+
       - name: Archive Job 1 results
         if: success() || failure()
         uses: actions/upload-artifact@v4
@@ -58,17 +66,18 @@ jobs:
         if: success() || failure()
         uses: actions/download-artifact@v4
         with:
-          path: "TestResults"
+          path: TestResults
           name: job_1_results
-      - uses: dorny/test-reporter@v1.9.1
+
+      - uses: mikepenz/action-junit-report@v5
         if: success() || failure()
         with:
           name: Job 1 Test Summary
-          path: "./TestResults/job_1.trx"
+          path: ./TestResults/job_1.trx
           reporter: dotnet-trx
           fail-on-error: false
-          list-tests: 'failed'
-          list-suites: 'all'
+          list-tests: failed
+          list-suites: all
 
   job_2:
     runs-on: [self-hosted, Windows]
@@ -79,7 +88,11 @@ jobs:
     steps:
       - name: Run Tests
         shell: powershell
-        run: dotnet test ./job_2.csproj --logger "trx;logfilename=job_2.trx" -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
+        run: dotnet test ./job_2.csproj `
+          --logger "trx;logfilename=job_2.trx" `
+          --results-directory ./TestResults `
+          -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
+
       - name: Archive Job 2 results
         if: success() || failure()
         uses: actions/upload-artifact@v4
@@ -97,17 +110,18 @@ jobs:
         if: success() || failure()
         uses: actions/download-artifact@v4
         with:
-          path: "TestResults"
+          path: TestResults
           name: job_2_results
-      - uses: dorny/test-reporter@v1.9.1
+
+      - uses: mikepenz/action-junit-report@v5
         if: success() || failure()
         with:
           name: Job 2 Test Summary
-          path: "./TestResults/job_2.trx"
+          path: ./TestResults/job_2.trx
           reporter: dotnet-trx
           fail-on-error: false
-          list-tests: 'failed'
-          list-suites: 'all'
+          list-tests: failed
+          list-suites: all
 
   test_summary:
     needs: [job_1_results, job_2_results]
@@ -117,15 +131,15 @@ jobs:
     if: ${{ !cancelled() }}
     steps:
       - name: Generate test summary
-        uses: dorny/test-reporter@v1.9.1
+        uses: mikepenz/action-junit-report@v5
         with:
           name: Test Summary
-          path: "TestResults/*.trx"
-          only-summary: 'true'
+          path: TestResults/*.trx
+          only-summary: true
           reporter: dotnet-trx
           fail-on-error: true
-          list-tests: 'failed'
-          list-suites: 'all'
+          list-tests: failed
+          list-suites: all
           detailed_summary: true
           include_suites: true
           include_tests: true
