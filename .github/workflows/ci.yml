@@ -126,3 +126,6 @@ jobs:
           fail-on-error: true
           list-tests: 'failed'
           list-suites: 'all'
+          detailed_summary: true
+          include_suites: true
+          include_tests: true
