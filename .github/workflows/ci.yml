@@ -47,7 +47,8 @@ jobs:
         run: dotnet test ./job_1.csproj `
           --logger "trx;logfilename=job_1.trx" `
           --results-directory ./TestResults `
-          -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
+          -v n --no-build --no-restore `
+          -- MSTest.Parallelize.Scope=ClassLevel
 
       - name: Archive Job 1 results
         if: success() || failure()
@@ -91,7 +92,8 @@ jobs:
         run: dotnet test ./job_2.csproj `
           --logger "trx;logfilename=job_2.trx" `
           --results-directory ./TestResults `
-          -v n --no-build --no-restore MSTest.Parallelize.Scope="ClassLevel"
+          -v n --no-build --no-restore `
+          -- MSTest.Parallelize.Scope=ClassLevel
 
       - name: Archive Job 2 results
         if: success() || failure()
